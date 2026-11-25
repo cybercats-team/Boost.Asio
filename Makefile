@@ -2,7 +2,7 @@ timer=tutorial/timer
 util=$(timer)/util
 
 .PHONY: all
-all: tutorial-timer1 tutorial-timer2 tutorial-timer3 tutorial-timer4 tutorial-clock
+all: tutorial-timer1 tutorial-timer2 tutorial-timer3 tutorial-timer4 tutorial-timer5 tutorial-clock
 
 bin:
 	mkdir -p bin
@@ -14,6 +14,8 @@ tutorial-timer2: bin bin/tutorial-timer2
 tutorial-timer3: bin bin/tutorial-timer3
 
 tutorial-timer4: bin bin/tutorial-timer4
+
+tutorial-timer5: bin bin/tutorial-timer5
 
 tutorial-clock: bin bin/tutorial-clock
 
@@ -28,6 +30,9 @@ bin/tutorial-timer3:
 
 bin/tutorial-timer4:
 	g++ -Wall -Wextra -Wpedantic $(timer)/timer4.cpp -o bin/tutorial-timer4	
+
+bin/tutorial-timer5:
+	g++ -Wall -Wextra -Wpedantic $(timer)/timer5.cpp -o bin/tutorial-timer5
 
 bin/tutorial-clock:
 	g++ -Wall -Wextra -Wpedantic $(timer)/clock.cpp $(util)/rawterminal.cpp -o bin/tutorial-clock	
