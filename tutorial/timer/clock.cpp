@@ -4,21 +4,12 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <termios.h>
 #include <unistd.h>
 #include <boost/asio.hpp>
 #include <boost/type_traits.hpp>
-#include "util/singletone.h"
 #include "util/datetime.h"
-
-class EnableRaw {
-public:
-  explicit EnableRaw(int fd);
-  ~EnableRaw();
-private:
-  termios m_term;
-  int m_fd = 0;
-};
+#include "util/singletone.h"
+#include "util/rawterminal.h"
 
 class Timer {
 public:
@@ -133,17 +124,4 @@ void Clock::OnKeyPress(const boost::system::error_code& ec, size_t size) {
   }
 
   NextKey();
-}
-
-EnableRaw::EnableRaw(int fd) : m_fd(fd) {
-  tcgetattr(fd, &m_term);
-
-  auto raw = m_term;
-  // Disable canonical mode (line buffering) and local echo
-  raw.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-}
-  
-EnableRaw::~EnableRaw() {
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &m_term);
 }
