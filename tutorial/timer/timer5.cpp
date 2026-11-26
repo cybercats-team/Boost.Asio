@@ -33,13 +33,19 @@ private:
   strand_t m_strand = boost::asio::make_strand(m_ctx);  
 };
 
+struct State {
+  int count = 0;
+  const int end;
+
+  explicit State(int count_to) : end(count_to) {}
+};
+
 class printer final {  
 public:
-  printer(ICtxMT& ctx, std::shared_ptr<int> count, std::shared_ptr<int> end) : 
+  printer(ICtxMT& ctx, std::shared_ptr<State> state) : 
     m_timer(ctx.GetCtx(), boost::asio::chrono::seconds(1)), 
     m_strand(ctx.GetStrand()),
-    m_count(count),    
-    m_end(end)
+    m_state(state)
   {
     await();
   }
@@ -47,21 +53,21 @@ public:
   ~printer() {
     using namespace boost::asio;
     
-    bind_executor(m_strand, [&count = m_count]() {
-      std::cout << "Final count is " << *count << std::endl;
+    bind_executor(m_strand, [&state = m_state]() {
+      std::cout << "Final count is " << state->count << std::endl;
     })();
   }
   
 protected:
   void print() {
     using namespace boost::asio::chrono;
-    auto& count = *m_count;
+    auto& state = *m_state;
 
-    if (*m_end <= count) {
+    if (state.end <= state.count) {
       return;
     }
 
-    std::cout << (count++) << std::endl;
+    std::cout << (state.count++) << std::endl;
       
     m_timer.expires_at(m_timer.expiry() + seconds(1));
     await();
@@ -77,18 +83,16 @@ private:
   boost::asio::steady_timer m_timer;
   ICtxMT::strand_t& m_strand;
   
-  std::shared_ptr<int> m_count = nullptr;  
-  std::shared_ptr<int> m_end = nullptr;
+  std::shared_ptr<State> m_state = nullptr;
 };
 
 int main() {
   auto& ctx = Singletone<CtxMT>::get();
-  auto count_ptr = std::make_shared<int>(0);
-  auto end_ptr = std::make_shared<int>(40);
+  auto state_ptr = std::make_shared<State>(40);
   
   std::vector<std::unique_ptr<printer>> printers{};
   for (unsigned int i = 0; i < std::thread::hardware_concurrency(); ++i) {
-    printers.emplace_back(std::make_unique<printer>(ctx, count_ptr, end_ptr));
+    printers.emplace_back(std::make_unique<printer>(ctx, state_ptr));
   }
 
   auto& io = ctx.GetCtx();
