@@ -52,10 +52,8 @@ public:
 
   ~printer() {
     using namespace boost::asio;
-    
-    bind_executor(m_strand, [&state = m_state]() {
-      std::cout << "Final count is " << state->count << std::endl;
-    })();
+        
+    std::cout << "Final count is " << m_state->count << std::endl;    
   }
   
 protected:
