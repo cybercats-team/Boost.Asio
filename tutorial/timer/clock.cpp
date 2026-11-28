@@ -5,11 +5,37 @@
 #include <iostream>
 #include <memory>
 #include <unistd.h>
+#include <sstream>
 #include <boost/asio.hpp>
 #include <boost/type_traits.hpp>
 #include "util/datetime.h"
 #include "util/singletone.h"
 #include "util/rawterminal.h"
+
+constexpr const std::array<std::array<unsigned char, 9>, 11> kSevenSegFont8x9 {{
+  // '0' (index 0) - left/right points added on row 4
+  { 0x7E, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x7E },
+  // '1' (index 1)
+  { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 },
+  // '2' (index 2)
+  { 0x7E, 0x01, 0x01, 0x01, 0x7E, 0x80, 0x80, 0x80, 0x7E },
+  // '3' (index 3)
+  { 0x7E, 0x01, 0x01, 0x01, 0x7E, 0x01, 0x01, 0x01, 0x7E },
+  // '4' (index 4)
+  { 0x81, 0x81, 0x81, 0x81, 0x7E, 0x01, 0x01, 0x01, 0x01 },
+  // '5' (index 5)
+  { 0x7E, 0x80, 0x80, 0x80, 0x7E, 0x01, 0x01, 0x01, 0x7E },
+  // '6' (index 6)
+  { 0x7E, 0x80, 0x80, 0x80, 0x7E, 0x81, 0x81, 0x81, 0x7E },
+  // '7' (index 7)
+  { 0x7E, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 },
+  // '8' (index 8)
+  { 0x7E, 0x81, 0x81, 0x81, 0x7E, 0x81, 0x81, 0x81, 0x7E },
+  // '9' (index 9)
+  { 0x7E, 0x81, 0x81, 0x81, 0x7E, 0x01, 0x01, 0x01, 0x7E },
+  // ':' (index 10)
+  { 0x00, 0x00, 0x18, 0x18, 0x00, 0x18, 0x18, 0x00, 0x00 }
+}};
 
 class Timer {
 public:
@@ -45,12 +71,12 @@ int32_t main() {
   EnableRaw raii(::dup(STDIN_FILENO));
   
   auto& io = Singletone<boost::asio::io_context>::get();
-  std::cout << "Q to exit" << std::endl << std::endl;
+  std::cout << "Q to exit\033[?25l" << std::endl << std::endl;
   
   Clock clock(io);
   io.run();
 
-  std::cout << std::endl;
+  std::cout << "\033[2F\033[J\033[?25h" << std::flush;
   return 0;
 }
 
@@ -99,7 +125,30 @@ void Clock::OnTimer(const Timer::tp&) {
   auto now = sys_clock::now();
   AsDateTime<sys_clock>(now, tm_now);
 
-  std::cout << "\033[2K\r" << std::put_time(&tm_now, "%H:%M:%S") << std::flush;
+  std::stringstream out{};
+  out << std::put_time(&tm_now, "%H:%M:%S") << std::flush;
+  
+  auto buffer = out.str();
+  std::cout << "\033[J" << std::flush;
+
+  for (size_t line = 0; line < 9; ++line) {
+    for (const char c : buffer) {
+      size_t index = (':' == c) ? 10 : (c - '0');
+      auto row = kSevenSegFont8x9[index][line];
+      unsigned char mask = 0x80;
+
+      while (mask) {
+        std::cout << ((row & mask) ? "\u25A0" : " ");
+        mask >>= 1;
+      }
+
+      std::cout << ' ';
+    }
+
+    std::cout << std::endl;
+  }
+
+  std::cout << "\033[9F" << std::flush;
 }
 
 void Clock::NextKey() {
